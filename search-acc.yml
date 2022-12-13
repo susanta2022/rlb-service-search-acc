@@ -1,0 +1,68 @@
+--- # create docker file
+- hosts: demo
+  user: ansadmin
+  become: yes
+  connection: ssh
+  gather_facts: yes
+
+  vars:
+     directory: /root/Downloads/rlb_services_search_acc
+
+  tasks:
+         - name: <<===========check if a file exist or not===========>>>>
+           stat:
+             path: "/home/ansadmin/rlb_services_search_acc"
+           register: file_data
+
+         - name: <<<==========remove is exist=========>>>
+           file:
+              path: /home/ansadmin/rlb_services_search_acc
+              state: absent
+           when: file_data.stat.exists
+ 
+         - name: mkdir /home/ansadmin/rlb_services_search_acc
+           file: path=/home/ansadmin/rlb_services_search_acc state=directory
+           register: rpm_files
+
+         - name: <<<========copy jar file to /home/ansadmin/rlb_services_search_acc =========>>>>
+           copy:
+                src: "{{ item }}" 
+                dest: /home/ansadmin/rlb_services_search_acc
+           register: rpms_copied       
+                     
+
+           with_fileglob:
+                - '{{directory}}/*'
+
+         - name: <<<========Remove container if exist========>>>>
+           docker_container:
+             name: rlb-services-search-acc
+             state: absent
+
+         - name: <<<========Remove image if exist===========>>>>
+           docker_image:
+            state: absent
+            name: realbooks/rlb-services-search-acc
+
+         - name: <<<===========Build Docker image from Dockerfile============>>>
+           docker_image:
+            name: realbooks/rlb-services-search-acc
+            build:
+             pull: yes
+             path: ./rlb_services_search_acc
+            state: present
+            #push: yes
+            source: build
+
+         
+         - name: <<<==========launch docker container===================>>>
+           docker_container:
+            name:  rlb-services-search-acc
+            image: realbooks/rlb-services-search-acc
+            state: started
+            ports:
+              - "8031:8086"
+             
+           register: docker_info
+        
+        
